@@ -1,3 +1,3 @@
 pub fn execute() {
-    println!("Version: {}",env!("CARGO_PKG_VERSION"));
+    println!("Version: {}", env!("CARGO_PKG_VERSION"));
 }

@@ -1,17 +1,27 @@
-use clap::{Parser,Subcommand};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)] //Trait
 
 pub struct Cli {
     #[command(subcommand)] // att
-     pub command: Commands,
-
+    pub command: Commands,
 }
 #[derive(Subcommand)] // 告知下面的类型的能力是子命令
 pub enum Commands {
-    Hello{
+    Hello {
         name: String,
         age: u32,
     },
     Version,
+    Echo {
+        #[arg(required = true)]
+        words: Vec<String>,
+
+        #[arg(long)]
+        upper: bool,
+    },
+    Divide {
+        dividend: i32,
+        divisor: i32,
+    },
 }
