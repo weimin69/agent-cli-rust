@@ -27,6 +27,23 @@ Never redesign the project unless the user explicitly requests an architectural 
 Prefer consistency over perfection.
 
 ---
+## Learning Roadmap
+
+This project follows a predefined learning roadmap.
+
+Before planning today's learning session, read:
+
+`LEARNING_ROADMAP.md`
+
+Use it to understand:
+
+- the overall learning stages
+- the recommended order of topics
+- the long-term project goals
+
+Always continue according to the roadmap unless the user explicitly requests a different direction.
+
+The final objective is not only to learn Rust, but to build a production-quality Agent CLI that demonstrates sound engineering practices.
 
 # Learning Commands
 
