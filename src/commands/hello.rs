@@ -1,4 +1,6 @@
-pub fn execute() {
-    println!("Hello from command!");
+pub fn execute(name: String,age: u32) {
+    println!("Hello {name}!");
+    println!("Age: {age}");
+
 
 }
