@@ -1,14 +1,16 @@
 mod cli;
-
+mod commands;
 use clap::Parser;
-use crate::cli::Cli;
+use crate::cli::{Cli,Commands};
 
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        crate::cli::Commands::Hello => {
-            println!("Hello,Agent CLI!");
-
+        Commands::Hello => {
+           commands::hello::execute();
+        }
+        Commands::Version => {
+            commands::version::execute();
         }
 
     }
