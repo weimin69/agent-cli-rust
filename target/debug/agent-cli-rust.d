@@ -1,1 +1,0 @@
-/Users/alax/code/agent-cli-rust/target/debug/agent-cli-rust: /Users/alax/code/agent-cli-rust/src/cli.rs /Users/alax/code/agent-cli-rust/src/commands/hello.rs /Users/alax/code/agent-cli-rust/src/commands/mod.rs /Users/alax/code/agent-cli-rust/src/commands/version.rs /Users/alax/code/agent-cli-rust/src/main.rs
