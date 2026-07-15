@@ -21,7 +21,7 @@ pub enum Commands {
         upper: bool,
     },
     Divide {
-        dividend: i32,
-        divisor: i32,
+        dividend: f64,
+        divisor: f64,
     },
 }
