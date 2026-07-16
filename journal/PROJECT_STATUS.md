@@ -49,10 +49,15 @@
 - 将 `main()` 改为返回 `Result<(), String>`
 - 初步使用 `?` 运算符转发错误
 - 初步理解“业务函数返回错误，入口层决定如何处理错误”的职责边界
+- 实现 `sum` 命令
+- 在 `sum::execute()` 中使用 `&[f64]` 只读借用参数
+- 验证 `sum` 正常输入、空参数和非法数字参数的行为
+- 初步理解 `main()`、`Cli::parse()`、`match` 和命令 `execute()` 之间的调用链
+- 初步讨论 `run() -> Result<(), String>` 作为业务入口函数的作用
 
 ## In Progress
 
-围绕统一命令接口继续巩固 Rust 错误处理：
+围绕 CLI 入口层继续巩固 Rust 错误处理和工程职责划分：
 
 - `Result<T, E>`
 - `Ok`
@@ -60,18 +65,19 @@
 - 错误返回
 - `?` 运算符
 - `main() -> Result<(), String>`
+- `run() -> Result<(), String>`
 
-当前所有命令的 `execute()` 已统一返回 `Result<(), String>`。`main.rs` 使用 `?` 转发错误，除以 0 时由 Rust 对 `main() -> Result` 的默认机制打印错误并返回失败退出码。
+当前所有命令的 `execute()` 已统一返回 `Result<(), String>`。`main.rs` 使用 `?` 转发错误，业务错误目前由 Rust 对 `main() -> Result` 的默认机制打印并返回失败退出码。下一步需要学习如何拆出 `run()`，让 `main()` 负责统一控制 CLI 错误输出格式。
 
 ## Next Step
 
-下一步建议新增一个简单 `sum` 命令，完整练习当前 CLI 架构和统一错误处理接口：
+下一步建议引入常见 CLI 入口结构：
 
-- 在 `src/cli.rs` 中定义 `Commands::Sum`
-- 在 `src/commands/sum.rs` 中实现 `sum::execute() -> Result<(), String>`
-- 在 `src/commands/mod.rs` 中导出 `sum`
-- 在 `src/main.rs` 中使用 `commands::sum::execute(...)?`
-- 用 `cargo fmt`、`cargo check` 和 `cargo run` 验证行为
+- 将当前 `main() -> Result<(), String>` 中的主要逻辑移动到 `run() -> Result<(), String>`
+- 让 `main()` 调用 `run()`
+- 在 `main()` 中使用 `if let Err(error) = run()` 统一打印 `error: ...`
+- 使用 `std::process::exit(1)` 保持业务错误时返回非 0 exit code
+- 修正 `sum` 命令错误文案中的拼写问题
 
 完成这些理解后，再进入：
 
@@ -93,6 +99,7 @@ src
 │   ├── echo.rs
 │   ├── divide.rs
 │   ├── hello.rs
+│   ├── sum.rs
 │   ├── version.rs
 │   └── mod.rs
 ├── cli.rs
@@ -104,7 +111,7 @@ src
 - `src/cli.rs`：定义 CLI 结构和子命令，不写业务逻辑
 - `src/commands/`：每个命令一个文件，负责具体业务逻辑，并通过 `Result<(), String>` 返回执行结果
 - `src/commands/mod.rs`：统一导出命令模块
-- `src/main.rs`：负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误
+- `src/main.rs`：当前负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；后续将学习拆分为 `main()` 和 `run()`
 
 新增命令时应遵循：
 
@@ -120,17 +127,19 @@ src
 - 后续命令越来越多时，是否需要改进 `main.rs` 中的分发方式？
 - `main() -> Result<(), String>` 的默认错误输出带引号，是否需要恢复为更适合 CLI 的错误格式？
 - 什么时候应该继续使用 `?`，什么时候应该手写错误处理？
+- `run()` 拆出来后，哪些逻辑应该留在 `main()`，哪些逻辑应该放进 `run()`？
 
 ## Technical Debt
 
 - 当前命令没有测试
 - 当前项目只有基础的 `String` 错误类型，还没有更正式的错误处理模型
 - `main() -> Result<(), String>` 的默认错误输出格式不够适合最终 CLI
+- `sum` 命令错误文案中存在拼写问题：`onr` 应改为 `one`
 - 当前日志文件命名存在 `2026-7-13.md`、`2026-7-14.md`，后续建议统一为 `YYYY-MM-DD.md`
 - 旧日志文件 `2026-7-14.md` 与标准命名 `2026-07-14.md` 同时存在，后续需要决定是否迁移或保留
 
 ## Next TODO
 
-- [ ] 新增 `sum` 子命令，完整练习当前命令新增流程
-- [ ] 继续使用 `Result<(), String>` 和 `?`，巩固错误传播
-- [ ] 观察并讨论 `main() -> Result<(), String>` 的默认错误输出格式
+- [ ] 修正 `sum` 命令错误文案中的拼写问题
+- [ ] 将主要业务入口拆到 `run() -> Result<(), String>`
+- [ ] 让 `main()` 统一打印 `error: ...` 并返回非 0 exit code
