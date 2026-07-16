@@ -24,4 +24,7 @@ pub enum Commands {
         dividend: f64,
         divisor: f64,
     },
+    Sum {
+        numbers: Vec<f64>,
+    },
 }

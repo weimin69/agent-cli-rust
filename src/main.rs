@@ -19,6 +19,9 @@ fn main() -> Result<(), String> {
         Commands::Divide { dividend, divisor } => {
             commands::divide::execute(dividend, divisor)?;
         }
+        Commands::Sum { numbers } => {
+            commands::sum::execute(&numbers)?;
+        }
     }
     Ok(())
 }
