@@ -12,7 +12,7 @@
 - 命令分发
 - 后续 Agent 能力所需的配置、错误处理、异步请求与 API 调用
 
-当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并完成基础错误处理模型的第一轮练习。
+当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并完成基础错误处理模型的第一轮练习。当前已经完成 `run()` / `main()` 职责拆分，并通过 `repeat` 命令练习了一次完整的 CLI 功能扩展。
 
 ## Completed
 
@@ -54,34 +54,48 @@
 - 验证 `sum` 正常输入、空参数和非法数字参数的行为
 - 初步理解 `main()`、`Cli::parse()`、`match` 和命令 `execute()` 之间的调用链
 - 初步讨论 `run() -> Result<(), String>` 作为业务入口函数的作用
+- 将主要业务入口拆分到 `run() -> Result<(), String>`
+- 让 `main()` 调用 `run()`，并使用 `if let Err(error)` 统一处理错误
+- 使用 `eprintln!` 将业务错误输出到 `stderr`
+- 使用 `std::process::exit(1)` 保持业务错误时返回非 0 exit code
+- 初步理解 `stdout` 和 `stderr` 的区别
+- 初步理解 `>` 重定向 `stdout`，`2>` 重定向 `stderr`
+- 进一步理解 `?` 运算符遇到 `Ok` 会继续执行，遇到 `Err` 会提前返回当前函数
+- 修正 `sum` 命令错误文案中的拼写问题
+- 实现 `repeat` 命令
+- 为 `repeat` 增加 `--times` named argument
+- 为 `repeat` 的 `words` 参数增加必填约束
+- 在 `repeat::execute()` 中校验 `times == 0` 的业务错误
+- 验证 `repeat` 正常输入、业务错误和缺少参数时的行为
 
 ## In Progress
 
-围绕 CLI 入口层继续巩固 Rust 错误处理和工程职责划分：
+继续围绕 CLI 错误处理和工程职责划分推进：
 
 - `Result<T, E>`
 - `Ok`
 - `Err`
 - 错误返回
 - `?` 运算符
-- `main() -> Result<(), String>`
 - `run() -> Result<(), String>`
+- `main()`
+- `stdout` / `stderr`
+- Clap 参数校验和业务校验边界
 
-当前所有命令的 `execute()` 已统一返回 `Result<(), String>`。`main.rs` 使用 `?` 转发错误，业务错误目前由 Rust 对 `main() -> Result` 的默认机制打印并返回失败退出码。下一步需要学习如何拆出 `run()`，让 `main()` 负责统一控制 CLI 错误输出格式。
+当前所有命令的 `execute()` 已统一返回 `Result<(), String>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。下一步适合开始讨论当前 `String` 错误模型的局限，以及什么时候引入更正式的错误处理方式。
 
 ## Next Step
 
-下一步建议引入常见 CLI 入口结构：
+下一步建议进入基础错误处理模型的第二轮学习：
 
-- 将当前 `main() -> Result<(), String>` 中的主要逻辑移动到 `run() -> Result<(), String>`
-- 让 `main()` 调用 `run()`
-- 在 `main()` 中使用 `if let Err(error) = run()` 统一打印 `error: ...`
-- 使用 `std::process::exit(1)` 保持业务错误时返回非 0 exit code
-- 修正 `sum` 命令错误文案中的拼写问题
+- Error Handling
+- 当前 `String` 错误的优点和局限
+- 什么时候继续使用 `String`
+- 什么时候引入 `anyhow`
+- 如何保持命令模块、`run()` 和 `main()` 的职责边界清晰
 
 完成这些理解后，再进入：
 
-- Error Handling
 - Config
 - `serde`
 - `reqwest`
@@ -99,6 +113,7 @@ src
 │   ├── echo.rs
 │   ├── divide.rs
 │   ├── hello.rs
+│   ├── repeat.rs
 │   ├── sum.rs
 │   ├── version.rs
 │   └── mod.rs
@@ -111,7 +126,7 @@ src
 - `src/cli.rs`：定义 CLI 结构和子命令，不写业务逻辑
 - `src/commands/`：每个命令一个文件，负责具体业务逻辑，并通过 `Result<(), String>` 返回执行结果
 - `src/commands/mod.rs`：统一导出命令模块
-- `src/main.rs`：当前负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；后续将学习拆分为 `main()` 和 `run()`
+- `src/main.rs`：`run()` 负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；`main()` 负责调用 `run()`、统一打印错误和设置失败退出码
 
 新增命令时应遵循：
 
@@ -125,21 +140,18 @@ src
 
 - 什么时候使用 `String` 作为错误，什么时候引入 `anyhow`？
 - 后续命令越来越多时，是否需要改进 `main.rs` 中的分发方式？
-- `main() -> Result<(), String>` 的默认错误输出带引号，是否需要恢复为更适合 CLI 的错误格式？
 - 什么时候应该继续使用 `?`，什么时候应该手写错误处理？
-- `run()` 拆出来后，哪些逻辑应该留在 `main()`，哪些逻辑应该放进 `run()`？
+- 后续是否需要为命令执行结果和错误输出增加自动化测试？
 
 ## Technical Debt
 
 - 当前命令没有测试
 - 当前项目只有基础的 `String` 错误类型，还没有更正式的错误处理模型
-- `main() -> Result<(), String>` 的默认错误输出格式不够适合最终 CLI
-- `sum` 命令错误文案中存在拼写问题：`onr` 应改为 `one`
 - 当前日志文件命名存在 `2026-7-13.md`、`2026-7-14.md`，后续建议统一为 `YYYY-MM-DD.md`
 - 旧日志文件 `2026-7-14.md` 与标准命名 `2026-07-14.md` 同时存在，后续需要决定是否迁移或保留
 
 ## Next TODO
 
-- [ ] 修正 `sum` 命令错误文案中的拼写问题
-- [ ] 将主要业务入口拆到 `run() -> Result<(), String>`
-- [ ] 让 `main()` 统一打印 `error: ...` 并返回非 0 exit code
+- [ ] 复习 `run()`、`main()`、`execute()` 的职责边界
+- [ ] 讨论当前 `String` 错误模型的局限
+- [ ] 判断下一步是否引入 `anyhow`

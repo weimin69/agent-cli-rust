@@ -27,4 +27,11 @@ pub enum Commands {
     Sum {
         numbers: Vec<f64>,
     },
+    Repeat {
+        #[arg(required = true)]
+        words: Vec<String>,
+
+        #[arg(long)]
+        times: u32,
+    },
 }

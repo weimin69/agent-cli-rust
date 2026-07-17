@@ -4,7 +4,14 @@ mod commands;
 use crate::cli::{Cli, Commands};
 use clap::Parser;
 
-fn main() -> Result<(), String> {
+fn main() {
+    if let Err(error) = run() {
+        eprintln!("error: {}", error);
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), String> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Hello { name, age } => {
@@ -21,6 +28,9 @@ fn main() -> Result<(), String> {
         }
         Commands::Sum { numbers } => {
             commands::sum::execute(&numbers)?;
+        }
+        Commands::Repeat { words, times } => {
+            commands::repeat::execute(&words, times)?;
         }
     }
     Ok(())
