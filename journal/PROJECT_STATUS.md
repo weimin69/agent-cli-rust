@@ -12,7 +12,7 @@
 - 命令分发
 - 后续 Agent 能力所需的配置、错误处理、异步请求与 API 调用
 
-当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并完成基础错误处理模型的第一轮练习。当前已经完成 `run()` / `main()` 职责拆分，并通过 `repeat` 命令练习了一次完整的 CLI 功能扩展。
+当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并逐步完善错误处理模型。当前已经完成 `run()` / `main()` 职责拆分，并将命令错误模型从 `Result<(), String>` 迁移到 `anyhow::Result<()>`。
 
 ## Completed
 
@@ -67,6 +67,14 @@
 - 为 `repeat` 的 `words` 参数增加必填约束
 - 在 `repeat::execute()` 中校验 `times == 0` 的业务错误
 - 验证 `repeat` 正常输入、业务错误和缺少参数时的行为
+- 讨论 `String` 错误模型的优点和局限
+- 初步理解 `anyhow` 适合 CLI 应用层错误处理
+- 初步理解 `anyhow` 不一定适合库公共 API
+- 添加 `anyhow` 依赖
+- 将 `run()` 改为返回 `anyhow::Result<()>`
+- 将所有命令的 `execute()` 改为返回 `anyhow::Result<()>`
+- 使用 `bail!` 表达业务错误
+- 验证 `anyhow` 迁移后的正常路径、业务错误路径和 Clap 错误路径
 
 ## In Progress
 
@@ -77,21 +85,22 @@
 - `Err`
 - 错误返回
 - `?` 运算符
-- `run() -> Result<(), String>`
+- `anyhow::Result<()>`
+- `bail!`
 - `main()`
 - `stdout` / `stderr`
 - Clap 参数校验和业务校验边界
 
-当前所有命令的 `execute()` 已统一返回 `Result<(), String>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。下一步适合开始讨论当前 `String` 错误模型的局限，以及什么时候引入更正式的错误处理方式。
+当前所有命令的 `execute()` 已统一返回 `anyhow::Result<()>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。下一步适合继续练习 `bail!`、`?` 和 `.context()` 的区别。
 
 ## Next Step
 
-下一步建议进入基础错误处理模型的第二轮学习：
+下一步建议继续基础错误处理模型的第二轮学习：
 
 - Error Handling
-- 当前 `String` 错误的优点和局限
-- 什么时候继续使用 `String`
-- 什么时候引入 `anyhow`
+- `bail!` 的使用场景
+- `?` 和 `bail!` 的区别
+- `.context()` 如何给底层错误补充上下文
 - 如何保持命令模块、`run()` 和 `main()` 的职责边界清晰
 
 完成这些理解后，再进入：
@@ -124,7 +133,7 @@ src
 当前职责划分：
 
 - `src/cli.rs`：定义 CLI 结构和子命令，不写业务逻辑
-- `src/commands/`：每个命令一个文件，负责具体业务逻辑，并通过 `Result<(), String>` 返回执行结果
+- `src/commands/`：每个命令一个文件，负责具体业务逻辑，并通过 `anyhow::Result<()>` 返回执行结果
 - `src/commands/mod.rs`：统一导出命令模块
 - `src/main.rs`：`run()` 负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；`main()` 负责调用 `run()`、统一打印错误和设置失败退出码
 
@@ -134,11 +143,11 @@ src
 2. 在 `src/commands/` 下新增命令模块
 3. 在 `src/commands/mod.rs` 中导出模块
 4. 在 `src/main.rs` 中添加命令分发
-5. 在命令模块中提供返回 `Result<(), String>` 的 `execute()` 函数
+5. 在命令模块中提供返回 `anyhow::Result<()>` 的 `execute()` 函数
 
 ## Open Questions
 
-- 什么时候使用 `String` 作为错误，什么时候引入 `anyhow`？
+- `bail!`、`?`、`.context()` 在实际代码里如何选择？
 - 后续命令越来越多时，是否需要改进 `main.rs` 中的分发方式？
 - 什么时候应该继续使用 `?`，什么时候应该手写错误处理？
 - 后续是否需要为命令执行结果和错误输出增加自动化测试？
@@ -146,12 +155,12 @@ src
 ## Technical Debt
 
 - 当前命令没有测试
-- 当前项目只有基础的 `String` 错误类型，还没有更正式的错误处理模型
+- 当前项目刚迁移到 `anyhow`，还没有练习 `.context()` 处理底层错误
 - 当前日志文件命名存在 `2026-7-13.md`、`2026-7-14.md`，后续建议统一为 `YYYY-MM-DD.md`
 - 旧日志文件 `2026-7-14.md` 与标准命名 `2026-07-14.md` 同时存在，后续需要决定是否迁移或保留
 
 ## Next TODO
 
-- [ ] 复习 `run()`、`main()`、`execute()` 的职责边界
-- [ ] 讨论当前 `String` 错误模型的局限
-- [ ] 判断下一步是否引入 `anyhow`
+- [ ] 复习 `bail!` 的作用和使用场景
+- [ ] 对比 `bail!`、`?` 和 `.context()`
+- [ ] 准备进入 config 命令前的错误处理练习

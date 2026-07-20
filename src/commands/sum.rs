@@ -1,6 +1,8 @@
-pub fn execute(numbers: &[f64]) -> Result<(), String> {
+use anyhow::{Result, bail};
+
+pub fn execute(numbers: &[f64]) -> Result<()> {
     if numbers.is_empty() {
-        return Err("please input at least one number".to_string());
+        bail!("please input at least one number");
     }
 
     let mut sum: f64 = 0.0;

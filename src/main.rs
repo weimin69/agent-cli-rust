@@ -2,6 +2,7 @@ mod cli;
 mod commands;
 
 use crate::cli::{Cli, Commands};
+use anyhow::Result;
 use clap::Parser;
 
 fn main() {
@@ -11,7 +12,7 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), String> {
+fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Hello { name, age } => {
