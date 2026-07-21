@@ -34,4 +34,7 @@ pub enum Commands {
         #[arg(long)]
         times: u32,
     },
+    ReadConfig {
+        path: String,
+    },
 }

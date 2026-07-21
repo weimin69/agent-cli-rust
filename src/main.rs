@@ -33,6 +33,9 @@ fn run() -> Result<()> {
         Commands::Repeat { words, times } => {
             commands::repeat::execute(&words, times)?;
         }
+        Commands::ReadConfig { path } => {
+            commands::read_config::execute(&path)?;
+        }
     }
     Ok(())
 }

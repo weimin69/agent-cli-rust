@@ -12,7 +12,7 @@
 - 命令分发
 - 后续 Agent 能力所需的配置、错误处理、异步请求与 API 调用
 
-当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并逐步完善错误处理模型。当前已经完成 `run()` / `main()` 职责拆分，并将命令错误模型从 `Result<(), String>` 迁移到 `anyhow::Result<()>`。
+当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并逐步完善错误处理模型。当前已经完成 `run()` / `main()` 职责拆分，将命令错误模型从 `Result<(), String>` 迁移到 `anyhow::Result<()>`，并通过 `read-config` 命令开始练习 `.context()` 和 `with_context()`。
 
 ## Completed
 
@@ -75,6 +75,14 @@
 - 将所有命令的 `execute()` 改为返回 `anyhow::Result<()>`
 - 使用 `bail!` 表达业务错误
 - 验证 `anyhow` 迁移后的正常路径、业务错误路径和 Clap 错误路径
+- 实现 `read-config` 命令
+- 为 `read-config` 增加路径参数
+- 在 `read_config::execute(path: &str)` 中使用只读字符串借用
+- 使用 `.context()` 给文件读取失败补充错误上下文
+- 初步理解 `with_context()` 适合动态错误上下文
+- 验证 `read-config config.toml` 和 `read-config Cargo.toml` 的成功路径
+- 验证 `read-config missing.toml` 的失败路径
+- 进一步理解相对路径基于程序启动时的当前工作目录
 
 ## In Progress
 
@@ -87,20 +95,23 @@
 - `?` 运算符
 - `anyhow::Result<()>`
 - `bail!`
+- `.context()`
+- `with_context()`
 - `main()`
 - `stdout` / `stderr`
 - Clap 参数校验和业务校验边界
 
-当前所有命令的 `execute()` 已统一返回 `anyhow::Result<()>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。下一步适合继续练习 `bail!`、`?` 和 `.context()` 的区别。
+当前所有命令的 `execute()` 已统一返回 `anyhow::Result<()>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。`read-config` 已能接收路径参数并读取文件，下一步适合继续完善 `with_context()`，让错误信息包含具体路径。
 
 ## Next Step
 
-下一步建议继续基础错误处理模型的第二轮学习：
+下一步建议继续基础错误处理模型的第二轮学习收尾：
 
 - Error Handling
 - `bail!` 的使用场景
 - `?` 和 `bail!` 的区别
 - `.context()` 如何给底层错误补充上下文
+- `with_context()` 如何生成包含变量的动态上下文
 - 如何保持命令模块、`run()` 和 `main()` 的职责边界清晰
 
 完成这些理解后，再进入：
@@ -122,6 +133,7 @@ src
 │   ├── echo.rs
 │   ├── divide.rs
 │   ├── hello.rs
+│   ├── read_config.rs
 │   ├── repeat.rs
 │   ├── sum.rs
 │   ├── version.rs
@@ -136,6 +148,7 @@ src
 - `src/commands/`：每个命令一个文件，负责具体业务逻辑，并通过 `anyhow::Result<()>` 返回执行结果
 - `src/commands/mod.rs`：统一导出命令模块
 - `src/main.rs`：`run()` 负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；`main()` 负责调用 `run()`、统一打印错误和设置失败退出码
+- `read-config` 当前用于错误处理练习，负责读取指定路径的文件内容
 
 新增命令时应遵循：
 
@@ -148,6 +161,7 @@ src
 ## Open Questions
 
 - `bail!`、`?`、`.context()` 在实际代码里如何选择？
+- `with_context()` 中如何正确放入路径等动态变量？
 - 后续命令越来越多时，是否需要改进 `main.rs` 中的分发方式？
 - 什么时候应该继续使用 `?`，什么时候应该手写错误处理？
 - 后续是否需要为命令执行结果和错误输出增加自动化测试？
@@ -155,12 +169,12 @@ src
 ## Technical Debt
 
 - 当前命令没有测试
-- 当前项目刚迁移到 `anyhow`，还没有练习 `.context()` 处理底层错误
+- `read_config.rs` 当前使用了 `with_context()`，但错误信息还没有包含具体 `path`
 - 当前日志文件命名存在 `2026-7-13.md`、`2026-7-14.md`，后续建议统一为 `YYYY-MM-DD.md`
 - 旧日志文件 `2026-7-14.md` 与标准命名 `2026-07-14.md` 同时存在，后续需要决定是否迁移或保留
 
 ## Next TODO
 
-- [ ] 复习 `bail!` 的作用和使用场景
-- [ ] 对比 `bail!`、`?` 和 `.context()`
-- [ ] 准备进入 config 命令前的错误处理练习
+- [ ] 修正 `read_config.rs` 的 `with_context()`，让错误信息包含具体路径
+- [ ] 对比 `.context()` 和 `with_context()` 的使用场景
+- [ ] 准备进入简单 config 读取和解析练习
