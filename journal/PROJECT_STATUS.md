@@ -12,7 +12,7 @@
 - 命令分发
 - 后续 Agent 能力所需的配置、错误处理、异步请求与 API 调用
 
-当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并逐步完善错误处理模型。当前已经完成 `run()` / `main()` 职责拆分，将命令错误模型从 `Result<(), String>` 迁移到 `anyhow::Result<()>`，并通过 `read-config` 命令开始练习 `.context()` 和 `with_context()`。
+当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并逐步完善错误处理模型。当前已经完成 `run()` / `main()` 职责拆分，将命令错误模型从 `Result<(), String>` 迁移到 `anyhow::Result<()>`，并通过 `read-config` 命令完成了文件读取错误上下文练习。项目已经开始进入简单配置读取与解析阶段，当前 `read-config` 可以将 TOML 文件解析为 `Config` 结构体并输出字段。
 
 ## Completed
 
@@ -83,41 +83,41 @@
 - 验证 `read-config config.toml` 和 `read-config Cargo.toml` 的成功路径
 - 验证 `read-config missing.toml` 的失败路径
 - 进一步理解相对路径基于程序启动时的当前工作目录
+- 修正 `read_config.rs` 的 `with_context()`，让读取失败错误包含具体路径
+- 对比理解 `?`、`bail!`、`.context()` 和 `with_context()` 的使用场景
+- 初步使用 `struct` 表达配置数据
+- 初步理解 `#[derive(Debug)]` 的调试输出用途
+- 添加 `serde` 和 `toml` 依赖
+- 使用 `serde::Deserialize` 让 `Config` 支持反序列化
+- 使用 `toml::from_str()` 将 TOML 字符串解析成 `Config`
+- 将 `read-config` 输出调整为读取 `config.model` 和 `config.temperature`
+- 验证 `cargo check` 无 warning
 
 ## In Progress
 
-继续围绕 CLI 错误处理和工程职责划分推进：
+继续围绕配置读取、配置解析和错误路径推进：
 
-- `Result<T, E>`
-- `Ok`
-- `Err`
-- 错误返回
-- `?` 运算符
-- `anyhow::Result<()>`
-- `bail!`
-- `.context()`
-- `with_context()`
-- `main()`
-- `stdout` / `stderr`
-- Clap 参数校验和业务校验边界
+- `serde::Deserialize`
+- `toml::from_str()`
+- 配置文件格式错误
+- 解析错误上下文
+- 配置结构体字段设计
+- 用户输出和调试输出的边界
 
-当前所有命令的 `execute()` 已统一返回 `anyhow::Result<()>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。`read-config` 已能接收路径参数并读取文件，下一步适合继续完善 `with_context()`，让错误信息包含具体路径。
+当前所有命令的 `execute()` 已统一返回 `anyhow::Result<()>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。`read-config` 已能接收路径参数、读取 TOML 文件、解析为 `Config`，并输出 `model` 与 `temperature` 字段。
 
 ## Next Step
 
-下一步建议继续基础错误处理模型的第二轮学习收尾：
+下一步建议继续配置解析错误路径练习：
 
-- Error Handling
-- `bail!` 的使用场景
-- `?` 和 `bail!` 的区别
-- `.context()` 如何给底层错误补充上下文
-- `with_context()` 如何生成包含变量的动态上下文
-- 如何保持命令模块、`run()` 和 `main()` 的职责边界清晰
+- 故意写坏 `config.toml`
+- 观察 `toml::from_str()` 的解析错误
+- 观察 `.context("failed to parse config file")` 和底层错误如何组合
+- 练习区分文件读取错误和配置格式错误
+- 考虑是否为缺少字段、字段类型错误补充更清晰的提示
 
 完成这些理解后，再进入：
 
-- Config
-- `serde`
 - `reqwest`
 - `async`
 - OpenAI API
@@ -148,7 +148,7 @@ src
 - `src/commands/`：每个命令一个文件，负责具体业务逻辑，并通过 `anyhow::Result<()>` 返回执行结果
 - `src/commands/mod.rs`：统一导出命令模块
 - `src/main.rs`：`run()` 负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；`main()` 负责调用 `run()`、统一打印错误和设置失败退出码
-- `read-config` 当前用于错误处理练习，负责读取指定路径的文件内容
+- `read-config` 当前用于配置读取和解析练习，负责读取指定路径的 TOML 文件，解析为 `Config`，并输出配置字段
 
 新增命令时应遵循：
 
@@ -160,21 +160,20 @@ src
 
 ## Open Questions
 
-- `bail!`、`?`、`.context()` 在实际代码里如何选择？
-- `with_context()` 中如何正确放入路径等动态变量？
+- TOML 解析失败时，错误信息应该暴露多少底层细节？
+- `Config` 后续是否应该移动到单独的配置模块？
 - 后续命令越来越多时，是否需要改进 `main.rs` 中的分发方式？
-- 什么时候应该继续使用 `?`，什么时候应该手写错误处理？
 - 后续是否需要为命令执行结果和错误输出增加自动化测试？
 
 ## Technical Debt
 
 - 当前命令没有测试
-- `read_config.rs` 当前使用了 `with_context()`，但错误信息还没有包含具体 `path`
+- `Config` 当前还定义在 `read_config.rs` 中，后续配置逻辑变复杂时可能需要拆分模块
 - 当前日志文件命名存在 `2026-7-13.md`、`2026-7-14.md`，后续建议统一为 `YYYY-MM-DD.md`
 - 旧日志文件 `2026-7-14.md` 与标准命名 `2026-07-14.md` 同时存在，后续需要决定是否迁移或保留
 
 ## Next TODO
 
-- [ ] 修正 `read_config.rs` 的 `with_context()`，让错误信息包含具体路径
-- [ ] 对比 `.context()` 和 `with_context()` 的使用场景
-- [ ] 准备进入简单 config 读取和解析练习
+- [ ] 故意写坏 `config.toml`，观察解析失败输出
+- [ ] 对比文件读取错误和 TOML 解析错误
+- [ ] 练习缺少字段、字段类型错误时的配置解析行为
