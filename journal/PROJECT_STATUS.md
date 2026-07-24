@@ -12,7 +12,7 @@
 - 命令分发
 - 后续 Agent 能力所需的配置、错误处理、异步请求与 API 调用
 
-当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并逐步完善错误处理模型。当前已经完成 `run()` / `main()` 职责拆分，将命令错误模型从 `Result<(), String>` 迁移到 `anyhow::Result<()>`，并通过 `read-config` 命令完成了文件读取错误上下文练习。项目已经开始进入简单配置读取与解析阶段，当前 `read-config` 可以将 TOML 文件解析为 `Config` 结构体并输出字段。
+当前重点不是快速实现 Agent，而是先建立清晰、可扩展的 CLI 架构，并逐步完善错误处理模型。当前已经完成 `run()` / `main()` 职责拆分，将命令错误模型从 `Result<(), String>` 迁移到 `anyhow::Result<()>`，并通过 `read-config` 命令完成了文件读取、TOML 解析和错误上下文练习。项目已经开始进入简单配置读取与解析阶段，当前 `read-config` 可以将 TOML 文件解析为 `Config` 结构体并输出字段，`main()` 也已经可以打印 `anyhow` 错误链。
 
 ## Completed
 
@@ -92,29 +92,35 @@
 - 使用 `toml::from_str()` 将 TOML 字符串解析成 `Config`
 - 将 `read-config` 输出调整为读取 `config.model` 和 `config.temperature`
 - 验证 `cargo check` 无 warning
+- 练习 TOML 字段类型错误、缺少字段和语法错误的失败路径
+- 初步理解错误链 error chain
+- 使用 `error.chain().skip(1)` 打印底层错误原因
+- 验证 `cargo fmt --check` 通过
+- 验证 `cargo check` 通过
 
 ## In Progress
 
-继续围绕配置读取、配置解析和错误路径推进：
+继续围绕配置读取、配置解析和错误输出边界推进：
 
 - `serde::Deserialize`
 - `toml::from_str()`
 - 配置文件格式错误
 - 解析错误上下文
+- `anyhow::Error::chain()`
 - 配置结构体字段设计
 - 用户输出和调试输出的边界
 
-当前所有命令的 `execute()` 已统一返回 `anyhow::Result<()>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...` 并返回失败退出码。`read-config` 已能接收路径参数、读取 TOML 文件、解析为 `Config`，并输出 `model` 与 `temperature` 字段。
+当前所有命令的 `execute()` 已统一返回 `anyhow::Result<()>`。`run()` 负责解析 CLI、匹配子命令并使用 `?` 转发业务错误；`main()` 负责统一打印 `error: ...`、遍历错误链打印 `caused by: ...`，并返回失败退出码。`read-config` 已能接收路径参数、读取 TOML 文件、解析为 `Config`，并输出 `model` 与 `temperature` 字段。
 
 ## Next Step
 
-下一步建议继续配置解析错误路径练习：
+下一步建议继续配置错误输出边界练习：
 
-- 故意写坏 `config.toml`
-- 观察 `toml::from_str()` 的解析错误
-- 观察 `.context("failed to parse config file")` 和底层错误如何组合
-- 练习区分文件读取错误和配置格式错误
-- 考虑是否为缺少字段、字段类型错误补充更清晰的提示
+- 使用不同坏配置继续观察错误链输出
+- 对比文件读取错误、TOML 语法错误、缺少字段和字段类型错误
+- 思考哪些底层错误细节适合直接暴露给 CLI 用户
+- 考虑是否需要调整错误输出格式，让多层原因更易读
+- 完成错误输出理解后，再进入配置结构体字段设计或配置模块拆分讨论
 
 完成这些理解后，再进入：
 
@@ -147,7 +153,7 @@ src
 - `src/cli.rs`：定义 CLI 结构和子命令，不写业务逻辑
 - `src/commands/`：每个命令一个文件，负责具体业务逻辑，并通过 `anyhow::Result<()>` 返回执行结果
 - `src/commands/mod.rs`：统一导出命令模块
-- `src/main.rs`：`run()` 负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；`main()` 负责调用 `run()`、统一打印错误和设置失败退出码
+- `src/main.rs`：`run()` 负责 `Cli::parse()`、`match Commands`、调用对应 `execute()`，并通过 `?` 转发错误；`main()` 负责调用 `run()`、统一打印错误、打印错误链和设置失败退出码
 - `read-config` 当前用于配置读取和解析练习，负责读取指定路径的 TOML 文件，解析为 `Config`，并输出配置字段
 
 新增命令时应遵循：
@@ -161,6 +167,7 @@ src
 ## Open Questions
 
 - TOML 解析失败时，错误信息应该暴露多少底层细节？
+- 错误链输出是否需要更清晰的层级格式？
 - `Config` 后续是否应该移动到单独的配置模块？
 - 后续命令越来越多时，是否需要改进 `main.rs` 中的分发方式？
 - 后续是否需要为命令执行结果和错误输出增加自动化测试？
@@ -174,6 +181,6 @@ src
 
 ## Next TODO
 
-- [ ] 故意写坏 `config.toml`，观察解析失败输出
-- [ ] 对比文件读取错误和 TOML 解析错误
-- [ ] 练习缺少字段、字段类型错误时的配置解析行为
+- [ ] 用不同坏配置继续观察 `error:` 和 `caused by:` 输出
+- [ ] 对比文件读取错误、TOML 语法错误、缺少字段和字段类型错误
+- [ ] 思考是否需要调整错误链输出格式

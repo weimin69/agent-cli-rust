@@ -8,6 +8,9 @@ use clap::Parser;
 fn main() {
     if let Err(error) = run() {
         eprintln!("error: {}", error);
+        for cause in error.chain().skip(1) {
+            eprintln!("caused by: {}", cause);
+        }
         std::process::exit(1);
     }
 }
